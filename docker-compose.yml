@@ -1,0 +1,44 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: nelumbo-postgres
+    environment:
+      POSTGRES_DB: citas
+      POSTGRES_USER: citas
+      POSTGRES_PASSWORD: citas
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U citas -d citas"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  citas-api:
+    build: ./citas-api
+    container_name: nelumbo-citas-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://postgres:5432/citas
+      DB_USER: citas
+      DB_PASSWORD: citas
+      JWT_SECRET: ${JWT_SECRET:secret}
+      NOTIFICACIONES_URL: http://notification-service:8081
+      SERVER_PORT: 8080
+    ports:
+      - "8080:8080"
+
+  notification-service:
+    build: ./notification-service
+    container_name: nelumbo-notification
+    environment:
+      SERVER_PORT: 8081
+    ports:
+      - "8081:8081"
+
+volumes:
+  pgdata:
