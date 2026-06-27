@@ -13,4 +13,6 @@ public interface CitaRepository extends JpaRepository<Cita, Long> {
     List<Cita> findByOdontologoIdAndEstadoIn(Long odontologoId, Collection<EstadoCita> estados);
 
     List<Cita> findByConsultorioIdAndEstadoIn(Long consultorioId, Collection<EstadoCita> estados);
+
+    boolean existsByPacienteDocumentoAndClinicaId(String documento, Long clinicaId);
 }

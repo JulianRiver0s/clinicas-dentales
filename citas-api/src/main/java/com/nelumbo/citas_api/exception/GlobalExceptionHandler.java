@@ -11,6 +11,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.client.RestClientException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -38,6 +39,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)
                 .body(new ApiError(409, "El registro está en uso o viola una restricción de unicidad", null));
+    }
+
+    // El microservicio de notificaciones caído o lento no debe filtrarse como un 500 genérico.
+    @ExceptionHandler(RestClientException.class)
+    public ResponseEntity<ApiError> handleRestClient(RestClientException ex) {
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new ApiError(502, "El servicio de notificaciones no está disponible", null));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

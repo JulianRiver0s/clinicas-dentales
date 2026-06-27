@@ -1,5 +1,6 @@
 package com.nelumbo.citas_api.services;
 
+import com.nelumbo.citas_api.dto.MensajeResponse;
 import com.nelumbo.citas_api.dto.NotificacionRequest;
 import java.time.Duration;
 import org.slf4j.Logger;
@@ -38,5 +39,15 @@ public class NotificacionClient {
         } catch (Exception e) {
             log.warn("No se pudo notificar al documento {}: {}", req.documento(), e.getMessage());
         }
+    }
+
+    // Envío explícito (endpoint /notificaciones/enviar): devuelve y propaga la respuesta del microservicio.
+    // A diferencia de enviar(), aquí un fallo del micro sí debe llegar al cliente, así que la excepción sube.
+    public MensajeResponse notificar(NotificacionRequest req) {
+        return http.post().uri("/notificaciones")
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(req)
+                .retrieve()
+                .body(MensajeResponse.class);
     }
 }
