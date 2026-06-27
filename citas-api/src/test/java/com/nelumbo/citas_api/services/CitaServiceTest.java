@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import com.nelumbo.citas_api.entities.EstadoCita;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -36,14 +35,6 @@ class CitaServiceTest {
         // 2026-07-01 23:00 y 2026-07-01 08:00 UTC caen el mismo día en Bogotá (UTC-5).
         assertTrue(CitaService.mismaFecha(t("2026-07-01T13:00:00Z"), t("2026-07-01T20:00:00Z")));
         assertFalse(CitaService.mismaFecha(t("2026-07-01T13:00:00Z"), t("2026-07-02T13:00:00Z")));
-    }
-
-    @Test
-    void soloEsAtendibleUnaCitaActivaConCheckin() {
-        Instant checkin = t("2026-07-01T10:00:00Z");
-        assertTrue(CitaService.atendible(EstadoCita.EN_CURSO, checkin));
-        assertFalse(CitaService.atendible(EstadoCita.AGENDADA, null));    // sin check-in previo
-        assertFalse(CitaService.atendible(EstadoCita.ATENDIDA, checkin)); // ya no está activa
     }
 
     @Test

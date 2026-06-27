@@ -48,8 +48,6 @@ public class CitaService {
             "No se puede Agendar Cita, el odontólogo o el consultorio no se encuentran disponibles en el horario solicitado";
     static final String PACIENTE_BLOQUEADO =
             "No se puede Agendar Cita, el paciente se encuentra bloqueado por inasistencias reiteradas";
-    static final String SIN_CITA_ACTIVA =
-            "No se puede Registrar Atención, no existe una cita activa para este paciente";
     private static final String MENSAJE_BLOQUEO =
             "Su cuenta ha sido bloqueada por 30 días debido a inasistencias reiteradas";
 
@@ -129,11 +127,16 @@ public class CitaService {
     // Cierre de la atención: confirma el cobro (snapshot) en el histórico y deja la cita ATENDIDA.
     @Transactional
     public RegistrarAtencionResponse registrarAtencion(RegistrarAtencionRequest req) {
-        Cita cita = citaRepo.findById(req.citaId()).orElse(null);
-        if (cita == null
-                || !atendible(cita.getEstado(), cita.getCheckinEn())
-                || !cita.getPaciente().getDocumento().equals(req.documento())) {
-            throw ApiException.negocio(SIN_CITA_ACTIVA);
+        Cita cita = citaRepo.findById(req.citaId())
+                .orElseThrow(() -> ApiException.noEncontrado("Cita no encontrada"));
+        if (!cita.getPaciente().getDocumento().equals(req.documento())) {
+            throw ApiException.negocio("La cita indicada no pertenece a este paciente");
+        }
+        if (!ACTIVAS.contains(cita.getEstado())) {
+            throw ApiException.negocio("La cita ya no está activa, no se puede registrar la atención");
+        }
+        if (cita.getCheckinEn() == null) {
+            throw ApiException.negocio("El paciente aún no ha hecho check-in en esta cita");
         }
         Instant ahora = Instant.now();
         cita.setInicioReal(cita.getCheckinEn());
@@ -208,11 +211,6 @@ public class CitaService {
                 .fechaHora(cuando)
                 .estadoCita(estado)
                 .build());
-    }
-
-    // Solo se atiende una cita activa (AGENDADA/EN_CURSO) que ya hizo check-in.
-    static boolean atendible(EstadoCita estado, Instant checkinEn) {
-        return ACTIVAS.contains(estado) && checkinEn != null;
     }
 
     // Cancelar con <24 h de antelación cobra el 30% del costo; con 24 h o más, sin cargo.
