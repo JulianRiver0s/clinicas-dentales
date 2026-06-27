@@ -48,15 +48,23 @@ cd citas-api
 
 ## 3. Probar
 
+**Login** (admin precargado, token RS256 válido 6 h):
 ```bash
-curl -s -X POST http://localhost:8080/token \
-  -d "grantType=password" \
-  -d "username=admin@mail.com" \
-  -d "password=admin"
+curl -s -X POST http://localhost:8080/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"admin@mail.com","password":"admin"}'
 ```
-Devuelve `{"accessToken":"<jwt>"}` cuyo header es `{"alg":"RS256"}`. Úsalo como `Authorization: Bearer <accessToken>` en los endpoints protegidos.
+Devuelve `{"accessToken":"<jwt>"}` con header `{"alg":"RS256"}`. Úsalo como `Authorization: Bearer <accessToken>` en los endpoints protegidos.
 
-> Para recibir también un refresh token: añade `-d "withRefreshToken=true"`.
+**Registrar un recepcionista** (solo ADMIN):
+```bash
+curl -s -X POST http://localhost:8080/auth/register \
+  -H "Authorization: Bearer <accessToken>" \
+  -H "Content-Type: application/json" \
+  -d '{"nombre":"Ana","email":"ana@mail.com","password":"ana123"}'
+```
+
+> Renovar el access token: `POST /auth/token` con `-d "refreshToken=<jwt>"`.
 
 ## Producción
 
