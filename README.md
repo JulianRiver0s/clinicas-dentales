@@ -46,6 +46,20 @@ cd citas-api
 ./mvnw spring-boot:run
 ```
 
+### Variables de entorno
+
+Todas tienen default para correr en local; sólo hace falta tocarlas en Docker/producción.
+
+| Variable | Servicio | Default | Para qué |
+|---|---|---|---|
+| `DB_URL` | citas-api | `jdbc:postgresql://localhost:5432/citas` | Conexión JDBC a Postgres |
+| `DB_USER` | citas-api | `citas` | Usuario de la BD |
+| `DB_PASSWORD` | citas-api | `citas` | Contraseña de la BD |
+| `SERVER_PORT` | citas-api / notification | `8080` / `8081` | Puerto HTTP |
+| `JWT_PRIVATE_KEY` | citas-api | `classpath:certs/private.pem` | Llave privada RS256 (firma) |
+| `JWT_PUBLIC_KEY` | citas-api | `classpath:certs/public.pem` | Llave pública RS256 (verificación) |
+| `NOTIFICACIONES_URL` | citas-api | `http://localhost:8081` | Base URL del notification-service |
+
 ## 3. Probar
 
 **Login** (admin precargado, token RS256 válido 6 h):
@@ -75,3 +89,108 @@ JWT_PRIVATE_KEY=file:/run/secrets/private.pem
 JWT_PUBLIC_KEY=file:/run/secrets/public.pem
 ```
 (Por defecto son `classpath:certs/private.pem` y `classpath:certs/public.pem`.)
+
+## Credenciales sembradas
+
+Cargadas por migración al arrancar (ver `db/migration`):
+
+| Rol | Email | Password | Origen |
+|---|---|---|---|
+| ADMIN | `admin@mail.com` | `admin` | seed `V3` |
+| RECEPCIONISTA | `recepcion@mail.com` | `recepcion` | seed demo `V7`, asociado a la "Clínica Central" |
+
+## Modelo de datos (ER)
+
+```mermaid
+erDiagram
+    roles ||--o{ usuarios : tiene
+    usuarios ||--o{ recepcionista_clinica : ""
+    clinicas ||--o{ recepcionista_clinica : ""
+    clinicas ||--o{ consultorios : ""
+    clinicas ||--o{ odontologo_clinica : ""
+    odontologos ||--o{ odontologo_clinica : ""
+    pacientes ||--o{ citas : ""
+    consultorios ||--o{ citas : ""
+    odontologos ||--o{ citas : ""
+    procedimientos ||--o{ citas : ""
+    clinicas ||--o{ citas : ""
+    usuarios ||--o{ citas : "creado_por"
+    citas ||--o{ historico_financiero : ""
+
+    roles {
+        bigserial id PK
+        varchar nombre UK
+    }
+    usuarios {
+        bigserial id PK
+        varchar email UK
+        varchar password_hash
+        bigint rol_id FK
+        boolean activo
+    }
+    clinicas {
+        bigserial id PK
+        varchar nombre
+        varchar ciudad
+        varchar telefono
+    }
+    consultorios {
+        bigserial id PK
+        bigint clinica_id FK
+        varchar nombre
+        int capacidad_simultanea
+    }
+    odontologos {
+        bigserial id PK
+        varchar documento UK
+        varchar especialidad
+    }
+    procedimientos {
+        bigserial id PK
+        varchar nombre
+        numeric costo
+        int duracion_minutos
+    }
+    pacientes {
+        varchar documento PK
+        int inasistencias
+        timestamptz bloqueado_hasta
+    }
+    citas {
+        bigserial id PK
+        varchar paciente_documento FK
+        bigint consultorio_id FK
+        bigint odontologo_id FK
+        bigint procedimiento_id FK
+        bigint clinica_id FK
+        bigint creado_por FK
+        varchar estado
+        numeric costo
+        timestamptz fecha_hora_cita
+    }
+    historico_financiero {
+        bigserial id PK
+        bigint cita_id FK
+        varchar tipo
+        numeric monto
+        varchar estado_cita
+    }
+    recepcionista_clinica {
+        bigint usuario_id FK
+        bigint clinica_id FK
+    }
+    odontologo_clinica {
+        bigint odontologo_id FK
+        bigint clinica_id FK
+    }
+```
+
+## Supuestos
+
+- El esquema lo gestiona Flyway (`ddl-auto=validate`): las migraciones `V1..V7` corren solas al arrancar.
+- Las contraseñas se guardan con bcrypt (pgcrypto `crypt`/`gen_salt('bf')`), no en texto plano.
+- JWT firmado con RS256; access token válido 6 h (`app.jwt.expiration-hours`), renovable con `POST /auth/token`.
+- Dos roles: `ADMIN` y `RECEPCIONISTA`. Registrar usuarios es exclusivo de ADMIN.
+- Los pacientes se identifican por `documento` (sin id autogenerado); acumulan inasistencias y pueden quedar bloqueados temporalmente (`bloqueado_hasta`).
+- Estados de cita: `AGENDADA`, `EN_CURSO`, `ATENDIDA`, `CANCELADA`, `INASISTENCIA`, `PENDIENTE_APROBACION`, `RECHAZADA`.
+- Los datos demo (1 clínica, 1 consultorio, 1 odontólogo, 2 procedimientos, 1 recepcionista) son sólo para arranque local.

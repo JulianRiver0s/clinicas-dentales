@@ -1,0 +1,553 @@
+{
+  "info": {
+    "name": "citas-api",
+    "_postman_id": "c1ta5ap1-0000-4000-8000-000000000001",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Endpoints de citas-api (clínicas dentales). Auth con JWT RS256 vía header Authorization: Bearer.\n\nUso: corre primero **Auth → Login**; su test guarda el accessToken en la variable de colección `{{token}}` y el resto de requests lo heredan automáticamente.\n\n`base_url` por defecto: http://localhost:8080\n\nCredenciales sembradas (migraciones):\n- ADMIN — admin@mail.com / admin\n- RECEPCIONISTA — recepcion@mail.com / recepcion\n\nLos IDs de ejemplo (1, 2) asumen los datos demo de la migración V7."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8080" },
+    { "key": "token", "value": "" },
+    { "key": "refreshToken", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set(\"token\", j.accessToken);",
+                  "pm.collectionVariables.set(\"refreshToken\", j.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@mail.com\",\n  \"password\": \"admin\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Público. Devuelve { accessToken }. El test de este request lo guarda en {{token}}."
+          }
+        },
+        {
+          "name": "Registrar recepcionista",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Ana\",\n  \"email\": \"ana@mail.com\",\n  \"password\": \"ana123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "register"]
+            },
+            "description": "Solo ADMIN. Crea un usuario con rol RECEPCIONISTA. password mínimo 4 caracteres."
+          }
+        },
+        {
+          "name": "Renovar access token",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "refreshToken", "value": "{{refreshToken}}", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/token",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "token"]
+            },
+            "description": "Público. Renueva el access token a partir de un JWT válido. Devuelve { accessToken }."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Clínicas",
+      "item": [
+        {
+          "name": "Listar clínicas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clinicas",
+              "host": ["{{base_url}}"],
+              "path": ["clinicas"]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Obtener clínica",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clinicas/:id",
+              "host": ["{{base_url}}"],
+              "path": ["clinicas", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Crear clínica",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Clínica Central\",\n  \"direccion\": \"Calle 123\",\n  \"ciudad\": \"Bogotá\",\n  \"telefono\": \"+57 1 2345678\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/clinicas",
+              "host": ["{{base_url}}"],
+              "path": ["clinicas"]
+            },
+            "description": "Solo ADMIN. nombre es obligatorio."
+          }
+        },
+        {
+          "name": "Actualizar clínica",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Clínica Central\",\n  \"direccion\": \"Calle 123\",\n  \"ciudad\": \"Bogotá\",\n  \"telefono\": \"+57 1 2345678\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/clinicas/:id",
+              "host": ["{{base_url}}"],
+              "path": ["clinicas", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Eliminar clínica",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clinicas/:id",
+              "host": ["{{base_url}}"],
+              "path": ["clinicas", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN. Responde 204 sin cuerpo."
+          }
+        },
+        {
+          "name": "Asociar recepcionista a clínica",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/clinicas/:id/recepcionistas?usuarioId=2",
+              "host": ["{{base_url}}"],
+              "path": ["clinicas", ":id", "recepcionistas"],
+              "query": [{ "key": "usuarioId", "value": "2" }],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN. usuarioId = id del usuario RECEPCIONISTA (demo: 2)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Consultorios",
+      "item": [
+        {
+          "name": "Listar consultorios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/consultorios",
+              "host": ["{{base_url}}"],
+              "path": ["consultorios"]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Obtener consultorio",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/consultorios/:id",
+              "host": ["{{base_url}}"],
+              "path": ["consultorios", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Crear consultorio",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clinicaId\": 1,\n  \"nombre\": \"Consultorio A\",\n  \"capacidadSimultanea\": 3\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/consultorios",
+              "host": ["{{base_url}}"],
+              "path": ["consultorios"]
+            },
+            "description": "Solo ADMIN. clinicaId y nombre obligatorios; capacidadSimultanea >= 1."
+          }
+        },
+        {
+          "name": "Actualizar consultorio",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"clinicaId\": 1,\n  \"nombre\": \"Consultorio A\",\n  \"capacidadSimultanea\": 3\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/consultorios/:id",
+              "host": ["{{base_url}}"],
+              "path": ["consultorios", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Eliminar consultorio",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/consultorios/:id",
+              "host": ["{{base_url}}"],
+              "path": ["consultorios", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN. Responde 204 sin cuerpo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Odontólogos",
+      "item": [
+        {
+          "name": "Listar odontólogos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/odontologos",
+              "host": ["{{base_url}}"],
+              "path": ["odontologos"]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Obtener odontólogo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/odontologos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["odontologos", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Crear odontólogo",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"123456789\",\n  \"nombre\": \"Dra. Ana Martínez\",\n  \"especialidad\": \"Ortodoncia\",\n  \"clinicaIds\": [1]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/odontologos",
+              "host": ["{{base_url}}"],
+              "path": ["odontologos"]
+            },
+            "description": "Solo ADMIN. documento y nombre obligatorios. clinicaIds asocia el odontólogo a clínicas existentes."
+          }
+        },
+        {
+          "name": "Actualizar odontólogo",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"123456789\",\n  \"nombre\": \"Dra. Ana Martínez\",\n  \"especialidad\": \"Ortodoncia\",\n  \"clinicaIds\": [1]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/odontologos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["odontologos", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Eliminar odontólogo",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/odontologos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["odontologos", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN. Responde 204 sin cuerpo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Procedimientos",
+      "item": [
+        {
+          "name": "Listar procedimientos",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/procedimientos",
+              "host": ["{{base_url}}"],
+              "path": ["procedimientos"]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Obtener procedimiento",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/procedimientos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["procedimientos", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Crear procedimiento",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Limpieza Dental\",\n  \"descripcion\": \"Profilaxis y fluoruro\",\n  \"costo\": 85.50,\n  \"duracionMinutos\": 45\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/procedimientos",
+              "host": ["{{base_url}}"],
+              "path": ["procedimientos"]
+            },
+            "description": "Solo ADMIN. nombre y costo (> 0) obligatorios."
+          }
+        },
+        {
+          "name": "Actualizar procedimiento",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"nombre\": \"Limpieza Dental\",\n  \"descripcion\": \"Profilaxis y fluoruro\",\n  \"costo\": 85.50,\n  \"duracionMinutos\": 45\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/procedimientos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["procedimientos", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN."
+          }
+        },
+        {
+          "name": "Eliminar procedimiento",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/procedimientos/:id",
+              "host": ["{{base_url}}"],
+              "path": ["procedimientos", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN. Responde 204 sin cuerpo."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Citas",
+      "item": [
+        {
+          "name": "Agendar cita",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"1234567890\",\n  \"nombrePaciente\": \"María Rodríguez\",\n  \"consultorioId\": 1,\n  \"odontologoId\": 1,\n  \"procedimientoId\": 1,\n  \"fechaHora\": \"2026-07-15T14:30:00Z\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/citas",
+              "host": ["{{base_url}}"],
+              "path": ["citas"]
+            },
+            "description": "ADMIN o RECEPCIONISTA. fechaHora debe ser futura (ISO-8601 UTC). documento: 6-12 dígitos. Devuelve { id }."
+          }
+        },
+        {
+          "name": "Check-in de cita",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/:id/checkin",
+              "host": ["{{base_url}}"],
+              "path": ["citas", ":id", "checkin"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Sin cuerpo."
+          }
+        },
+        {
+          "name": "Registrar atención",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"1234567890\",\n  \"citaId\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{base_url}}/citas/registrar-atencion",
+              "host": ["{{base_url}}"],
+              "path": ["citas", "registrar-atencion"]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Cierra la atención de la cita. Devuelve { mensaje, totalCobrado }."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Me",
+      "item": [
+        {
+          "name": "Mis clínicas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/me/clinicas",
+              "host": ["{{base_url}}"],
+              "path": ["me", "clinicas"]
+            },
+            "description": "Cualquier usuario autenticado. Clínicas asociadas al usuario del token."
+          }
+        },
+        {
+          "name": "Mis consultorios",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/me/consultorios",
+              "host": ["{{base_url}}"],
+              "path": ["me", "consultorios"]
+            },
+            "description": "Cualquier usuario autenticado. Consultorios de las clínicas del usuario."
+          }
+        }
+      ]
+    }
+  ]
+}
