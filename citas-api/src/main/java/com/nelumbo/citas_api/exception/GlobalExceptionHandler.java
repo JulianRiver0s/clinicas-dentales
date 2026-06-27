@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
                 .body(new ApiError(403, "No tiene permisos para esta operación", null));
     }
 
-    // Borrar un registro en uso (FK) o violar un UNIQUE → 409 en vez de un 500 feo.
+    // Borrar un registro en uso (FK) o violar un UNIQUE devuelve 409 en vez de un 500 feo.
     @ExceptionHandler(DataIntegrityViolationException.class)
     public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex) {
         return ResponseEntity.status(HttpStatus.CONFLICT)

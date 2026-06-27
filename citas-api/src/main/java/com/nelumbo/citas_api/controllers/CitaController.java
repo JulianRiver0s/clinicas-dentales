@@ -42,7 +42,7 @@ public class CitaController {
         return service.agendar(req, auth.getName());
     }
 
-    // Listado del día por clínica y/o consultorio (shape exacto del §4.5). fecha opcional: por defecto hoy.
+    // Listado del día por clínica y/o consultorio. fecha opcional: por defecto hoy.
     @GetMapping("/dia")
     public List<CitaResponse> dia(
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha,

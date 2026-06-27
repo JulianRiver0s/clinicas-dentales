@@ -20,7 +20,7 @@ class PeriodosTest {
 
     @Test
     void semanaEmpiezaElLunes() {
-        // Sábado 27 → lunes de esa semana es el 22.
+        // Sábado 27: el lunes de esa semana es el 22.
         assertEquals(Instant.parse("2026-06-22T05:00:00Z"), Periodos.inicioDeSemana(AHORA));
     }
 

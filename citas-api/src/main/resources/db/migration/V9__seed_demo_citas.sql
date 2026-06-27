@@ -1,8 +1,8 @@
 -- Datos demo para que los indicadores y las consultas devuelvan información coherente sin crearla a mano.
 -- Añade una 2.ª clínica (no asociada al recepcionista) para evidenciar el aislamiento por rol.
 -- Las fechas son relativas a now() para que el seed siga siendo "del mes" sin reescribirlo.
--- ponytail: cerca del cambio de mes/semana, una cita anclada a date_trunc('week'/'month') puede caer en el
---           periodo anterior; es data de ejemplo, no afecta la lógica de los endpoints.
+-- Cerca del cambio de mes/semana una cita anclada a date_trunc('week'/'month') puede caer en el
+-- periodo anterior; es data de ejemplo, no afecta la lógica de los endpoints.
 DO $$
 DECLARE
     v_clinica1 BIGINT;

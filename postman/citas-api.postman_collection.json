@@ -3,7 +3,7 @@
     "name": "citas-api",
     "_postman_id": "c1ta5ap1-0000-4000-8000-000000000001",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Endpoints de citas-api (clínicas dentales). Auth con JWT RS256 vía header Authorization: Bearer.\n\nUso: corre primero **Auth → Login**; su test guarda el accessToken en la variable de colección `{{token}}` y el resto de requests lo heredan automáticamente.\n\n`base_url` por defecto: http://localhost:8080\n\nCredenciales sembradas (migraciones):\n- ADMIN — admin@mail.com / admin\n- RECEPCIONISTA — recepcion@mail.com / recepcion\n\nLos IDs de ejemplo (1, 2) asumen los datos demo de las migraciones V7 (Clínica Central, clínica 1) y V9 (citas, histórico y Clínica Norte, clínica 2). Con esa data los indicadores y consultas devuelven resultados no vacíos; el RECEPCIONISTA solo ve la Clínica Central."
+    "description": "Endpoints de citas-api (clínicas dentales). Auth con JWT RS256 vía header Authorization: Bearer.\n\nUso: corre primero **Auth / Login**; su test guarda el accessToken en la variable de colección `{{token}}` y el resto de requests lo heredan automáticamente.\n\n`base_url` por defecto: http://localhost:8080\n\nCredenciales sembradas (migraciones):\n- ADMIN: admin@mail.com / admin\n- RECEPCIONISTA: recepcion@mail.com / recepcion\n\nLos IDs de ejemplo (1, 2) asumen los datos demo de las migraciones V7 (Clínica Central, clínica 1) y V9 (citas, histórico y Clínica Norte, clínica 2). Con esa data los indicadores y consultas devuelven resultados no vacíos; el RECEPCIONISTA solo ve la Clínica Central."
   },
   "auth": {
     "type": "bearer",
@@ -600,7 +600,7 @@
                 { "key": "fecha", "value": "2026-06-27", "description": "Opcional (YYYY-MM-DD); por defecto hoy." }
               ]
             },
-            "description": "ADMIN o RECEPCIONISTA. Citas de un día por clínica y/o consultorio (debe indicar al menos uno). Shape §4.5: id, documentoPaciente, nombrePaciente, odontologo, procedimiento, fechaHora, estado. El RECEPCIONISTA solo ve sus clínicas."
+            "description": "ADMIN o RECEPCIONISTA. Citas de un día por clínica y/o consultorio (debe indicar al menos uno). Estructura: id, documentoPaciente, nombrePaciente, odontologo, procedimiento, fechaHora, estado. El RECEPCIONISTA solo ve sus clínicas."
           }
         },
         {

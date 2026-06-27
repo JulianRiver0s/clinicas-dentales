@@ -18,7 +18,7 @@ class CitaServiceTest {
 
     @Test
     void intervalosSemiabiertosQueSeTocanNoSolapan() {
-        // [10:00,10:30) y [10:30,11:00) comparten límite → NO chocan.
+        // [10:00,10:30) y [10:30,11:00) comparten límite pero NO chocan.
         assertFalse(CitaService.solapa(
                 t("2026-07-01T10:00:00Z"), t("2026-07-01T10:30:00Z"),
                 t("2026-07-01T10:30:00Z"), t("2026-07-01T11:00:00Z")));
@@ -42,10 +42,10 @@ class CitaServiceTest {
     void cancelacionTardiaCobraEl30Porciento() {
         BigDecimal costo = new BigDecimal("100.00");
         Instant ahora = t("2026-07-01T10:00:00Z");
-        // 12 h de antelación (<24 h) → cargo del 30%.
+        // 12 h de antelación (<24 h): cargo del 30%.
         assertEquals(new BigDecimal("30.00"),
                 CitaService.cargoPorCancelacion(costo, t("2026-07-01T22:00:00Z"), ahora));
-        // La cita ya pasó → también es tardía.
+        // La cita ya pasó: también es tardía.
         assertEquals(new BigDecimal("30.00"),
                 CitaService.cargoPorCancelacion(costo, t("2026-07-01T08:00:00Z"), ahora));
     }

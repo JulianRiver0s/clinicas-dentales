@@ -12,7 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 // Orquesta el envío manual de notificaciones: valida que el paciente tenga cita en la clínica,
-// traduce clinicaId→clinicaNombre y propaga la respuesta del microservicio.
+// traduce clinicaId a clinicaNombre y propaga la respuesta del microservicio.
 @Service
 @RequiredArgsConstructor
 public class NotificacionService {

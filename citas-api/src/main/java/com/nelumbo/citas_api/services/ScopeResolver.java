@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 // Resuelve el alcance por rol para consultas e indicadores: el ADMIN ve toda la red; el RECEPCIONISTA
-// solo sus clínicas asociadas (§3.13/§3.14).
+// solo sus clínicas asociadas.
 @Component
 @RequiredArgsConstructor
 public class ScopeResolver {

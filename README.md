@@ -7,7 +7,7 @@ Los JWT se firman con **RS256** (par de llaves RSA). La llave privada **no está
 ## Stack y arquitectura
 
 - **Java 17** + **Spring Boot 4.1** (Maven vía el wrapper `./mvnw`)
-- **Spring Security** — OAuth2 Resource Server, JWT **RS256**
+- **Spring Security**: OAuth2 Resource Server, JWT **RS256**
 - **Spring Data JPA / Hibernate** sobre **PostgreSQL 16**
 - **Flyway** para el esquema y los datos (migraciones `V1..V9`)
 - **RestClient** para consumir el `notification-service`
@@ -108,7 +108,7 @@ curl -s -X POST http://localhost:8080/auth/register \
 
 ## Endpoints
 
-Todos requieren `Authorization: Bearer <token>` salvo `POST /auth/login`. El scope por rol se detalla en §4.
+Todos requieren `Authorization: Bearer <token>` salvo `POST /auth/login`. El scope por rol se detalla en la sección de indicadores y consultas.
 
 | Método | Ruta | Rol | Descripción |
 |---|---|---|---|
@@ -120,18 +120,18 @@ Todos requieren `Authorization: Bearer <token>` salvo `POST /auth/login`. El sco
 | CRUD | `/clinicas`, `/consultorios`, `/odontologos`, `/procedimientos` | ADMIN | `GET`, `GET /{id}`, `POST`, `PUT /{id}`, `DELETE /{id}` |
 | POST | `/clinicas/{id}/recepcionistas?usuarioId=` | ADMIN | Asociar un recepcionista a la clínica |
 | POST | `/citas` | ADMIN / RECEP | Agendar cita (campo opcional `requiereAprobacion`) |
-| POST | `/citas/{id}/checkin` | ADMIN / RECEP | Check-in del paciente → `EN_CURSO` |
-| POST | `/citas/registrar-atencion` | ADMIN / RECEP | Cerrar la atención (cobro) → `ATENDIDA` |
+| POST | `/citas/{id}/checkin` | ADMIN / RECEP | Check-in del paciente; pasa a `EN_CURSO` |
+| POST | `/citas/registrar-atencion` | ADMIN / RECEP | Cerrar la atención (cobro); pasa a `ATENDIDA` |
 | POST | `/citas/{id}/cancelar` | ADMIN / RECEP | Cancelar (cargo 30% si faltan <24 h) |
 | POST | `/citas/{id}/no-show` | ADMIN / RECEP | Marcar inasistencia |
-| POST | `/citas/{id}/aprobar` · `/rechazar` | ADMIN | Aprobar/rechazar una cita `PENDIENTE_APROBACION` |
-| GET | `/citas`, `/citas/dia`, `/citas/buscar`, `/citas/{id}` | ADMIN / RECEP | Consultas de citas (ver §4) |
-| GET | `/indicadores/...` | según indicador | Indicadores clínicos y financieros (ver §4) |
+| POST | `/citas/{id}/aprobar` y `/rechazar` | ADMIN | Aprobar/rechazar una cita `PENDIENTE_APROBACION` |
+| GET | `/citas`, `/citas/dia`, `/citas/buscar`, `/citas/{id}` | ADMIN / RECEP | Consultas de citas (ver más abajo) |
+| GET | `/indicadores/...` | según indicador | Indicadores clínicos y financieros (ver más abajo) |
 | POST | `/notificaciones/enviar` | ADMIN | Enviar notificación vía notification-service |
 
-## 4. Indicadores y consultas de citas
+## Indicadores y consultas de citas
 
-Capa de lectura (E8). Todos requieren token. Con el seed `V9` devuelven datos no vacíos.
+Capa de lectura. Todos requieren token. Con el seed `V9` devuelven datos no vacíos.
 
 | Método | Ruta | Rol | Qué devuelve |
 |---|---|---|---|
@@ -141,7 +141,7 @@ Capa de lectura (E8). Todos requieren token. Con el seed `V9` devuelven datos no
 | GET | `/indicadores/ganancias/{clinicaId}` | ADMIN / RECEP | Ganancias hoy/semana/mes/año de la clínica |
 | GET | `/indicadores/top-odontologos-mes` | ADMIN | Top 3 odontólogos por atenciones del mes |
 | GET | `/indicadores/top-procedimientos-mes` | ADMIN | Top 3 procedimientos más solicitados del mes |
-| GET | `/citas/dia?clinicaId=&consultorioId=&fecha=` | ADMIN / RECEP | Citas del día (shape exacto §4.5) |
+| GET | `/citas/dia?clinicaId=&consultorioId=&fecha=` | ADMIN / RECEP | Citas del día (misma estructura del listado) |
 | GET | `/citas?estado=&clinicaId=&fecha=` | ADMIN / RECEP | Listado de citas (agendadas y atendidas), filtros opcionales |
 | GET | `/citas/{id}` | ADMIN / RECEP | Detalle de una cita |
 | GET | `/citas/buscar?documento=` | ADMIN / RECEP | Búsqueda por coincidencia parcial del documento |
@@ -212,4 +212,4 @@ En `postman/citas-api.postman_collection.json`. Impórtala en Postman: al ejecut
 - Estados de cita: `AGENDADA`, `EN_CURSO`, `ATENDIDA`, `CANCELADA`, `INASISTENCIA`, `PENDIENTE_APROBACION`, `RECHAZADA`.
 - Los datos demo son sólo para arranque local: `V7` siembra la "Clínica Central" (1 consultorio, 1 odontólogo, 2 procedimientos, 1 recepcionista asociado) y `V9` añade citas + histórico financiero y una 2.ª clínica ("Clínica Norte", sin recepcionista) para que los indicadores devuelvan datos y se vea el aislamiento por rol.
 - A propósito **no se valida el orden temporal** al marcar inasistencia o cancelar: se puede hacer aunque la cita aún no haya llegado a su hora. Esto facilita probar de una vez el cobro por cancelación tardía, el no-show y el bloqueo sin fabricar citas con fecha pasada. En producción se añadiría un guard que rechace marcar inasistencia/cancelación antes de la hora de la cita.
-- **Aprobación manual de citas:** el enunciado da al ADMIN el permiso de aprobar o rechazar citas que requieran validación manual, pero no define qué dispara esa validación. Se resolvió con un campo opcional `requiereAprobacion` en `POST /citas`: si llega en `true`, la cita nace `PENDIENTE_APROBACION` y el ADMIN la resuelve con `POST /citas/{id}/aprobar` (→ `AGENDADA`, revalidando disponibilidad porque una cita pendiente no reserva el horario) o `POST /citas/{id}/rechazar` (→ `RECHAZADA`). Sin el flag, el agendamiento es directo como siempre.
+- **Aprobación manual de citas:** el enunciado da al ADMIN el permiso de aprobar o rechazar citas que requieran validación manual, pero no define qué dispara esa validación. Se resolvió con un campo opcional `requiereAprobacion` en `POST /citas`: si llega en `true`, la cita nace `PENDIENTE_APROBACION` y el ADMIN la resuelve con `POST /citas/{id}/aprobar` (pasa a `AGENDADA`, revalidando disponibilidad porque una cita pendiente no reserva el horario) o `POST /citas/{id}/rechazar` (pasa a `RECHAZADA`). Sin el flag, el agendamiento es directo como siempre.

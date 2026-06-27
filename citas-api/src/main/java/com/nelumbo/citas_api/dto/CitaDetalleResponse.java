@@ -4,7 +4,7 @@ import com.nelumbo.citas_api.entities.EstadoCita;
 import java.math.BigDecimal;
 import java.time.Instant;
 
-// Detalle de una cita: el shape del §4.5 más los datos de sede, cobro y tiempos reales.
+// Detalle de una cita: los campos del listado más los datos de sede, cobro y tiempos reales.
 public record CitaDetalleResponse(
         Long id,
         String documentoPaciente,
