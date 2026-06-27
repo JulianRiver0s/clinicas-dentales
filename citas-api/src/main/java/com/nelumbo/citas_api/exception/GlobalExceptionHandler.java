@@ -3,6 +3,7 @@ package com.nelumbo.citas_api.exception;
 import com.nelumbo.citas_api.dto.ApiError;
 import java.util.HashMap;
 import java.util.Map;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -30,6 +31,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(new ApiError(403, "No tiene permisos para esta operación", null));
+    }
+
+    // Borrar un registro en uso (FK) o violar un UNIQUE → 409 en vez de un 500 feo.
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ApiError> handleIntegrity(DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ApiError(409, "El registro está en uso o viola una restricción de unicidad", null));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
