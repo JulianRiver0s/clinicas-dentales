@@ -515,6 +515,34 @@
             },
             "description": "ADMIN o RECEPCIONISTA. Cierra la atención de la cita. Devuelve { mensaje, totalCobrado }."
           }
+        },
+        {
+          "name": "Cancelar cita",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/:id/cancelar",
+              "host": ["{{base_url}}"],
+              "path": ["citas", ":id", "cancelar"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Cancela la cita. Sin cuerpo. Devuelve { mensaje }."
+          }
+        },
+        {
+          "name": "Marcar inasistencia",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/:id/no-show",
+              "host": ["{{base_url}}"],
+              "path": ["citas", ":id", "no-show"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Marca la cita como inasistencia. Sin cuerpo. Devuelve { mensaje }."
+          }
         }
       ]
     },
