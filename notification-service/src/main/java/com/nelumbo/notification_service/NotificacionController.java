@@ -14,8 +14,8 @@ public class NotificacionController {
 
     @PostMapping("/notificaciones")
     public Mensaje notificar(@RequestBody Notificacion req) {
-        log.info("Notificación para documento {} (clínica {}): {}",
-                req.documento(), req.clinicaNombre(), req.mensaje());
+        log.info("Notificación recibida: email={}, documento={}, clínica={}, mensaje={}",
+                req.email(), req.documento(), req.clinicaNombre(), req.mensaje());
         return new Mensaje("Notificación Enviada");
     }
 }

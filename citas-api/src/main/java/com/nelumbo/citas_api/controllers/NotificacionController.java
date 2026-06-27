@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/notificaciones")
 @RequiredArgsConstructor
-@PreAuthorize("hasAnyAuthority('ADMIN','RECEPCIONISTA')")
+@PreAuthorize("hasAuthority('ADMIN')")
 public class NotificacionController {
 
     private final NotificacionService service;
