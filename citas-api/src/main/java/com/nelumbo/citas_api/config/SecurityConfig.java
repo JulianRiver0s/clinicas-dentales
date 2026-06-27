@@ -19,13 +19,22 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2Error;
+import org.springframework.security.oauth2.core.OAuth2TokenValidator;
+import org.springframework.security.oauth2.core.OAuth2TokenValidatorResult;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
+import org.springframework.security.oauth2.jwt.JwtValidators;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
+
+import com.nelumbo.citas_api.entities.TokenInvalidado;
+import com.nelumbo.citas_api.repositories.TokenInvalidadoRepository;
 
 @Configuration
 @EnableWebSecurity
@@ -70,10 +79,16 @@ public class SecurityConfig {
         return configuration.getAuthenticationManager();
     }
 
-    // Decodificar y validar tokens JWT usando la clave pública RSA
+    // Decodificar y validar tokens JWT usando la clave pública RSA.
+    // Además del validador por defecto (expiración), rechaza los tokens revocados por logout.
     @Bean
-    JwtDecoder jwtDecoder() {
-        return NimbusJwtDecoder.withPublicKey(rsaKeysConfig.publicKey()).build();
+    JwtDecoder jwtDecoder(TokenInvalidadoRepository revocados) {
+        NimbusJwtDecoder decoder = NimbusJwtDecoder.withPublicKey(rsaKeysConfig.publicKey()).build();
+        OAuth2TokenValidator<Jwt> noRevocado = jwt -> revocados.existsById(TokenInvalidado.hashDe(jwt.getTokenValue()))
+                ? OAuth2TokenValidatorResult.failure(new OAuth2Error("token_revocado", "Token revocado", null))
+                : OAuth2TokenValidatorResult.success();
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(JwtValidators.createDefault(), noRevocado));
+        return decoder;
     }
 
     // Genera y firma tokens JWT usando la clave privada y la clave pública RSA

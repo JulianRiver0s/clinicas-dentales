@@ -4,10 +4,13 @@ import com.nelumbo.citas_api.dto.LoginRequest;
 import com.nelumbo.citas_api.dto.RegisterRequest;
 import com.nelumbo.citas_api.dto.TokenResponse;
 import com.nelumbo.citas_api.entities.Rol;
+import com.nelumbo.citas_api.entities.TokenInvalidado;
 import com.nelumbo.citas_api.entities.Usuario;
 import com.nelumbo.citas_api.exception.ApiException;
 import com.nelumbo.citas_api.repositories.RolRepository;
+import com.nelumbo.citas_api.repositories.TokenInvalidadoRepository;
 import com.nelumbo.citas_api.repositories.UsuarioRepository;
+import java.time.Instant;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -18,6 +21,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
@@ -29,6 +33,7 @@ public class AuthService {
     private final AuthenticationManager authenticationManager;
     private final UserDetailsService userDetailsService;
     private final TokenService tokenService;
+    private final TokenInvalidadoRepository tokenInvalidadoRepository;
 
     public TokenResponse login(LoginRequest req) {
         Authentication auth = authenticationManager.authenticate(
@@ -41,6 +46,13 @@ public class AuthService {
         Jwt decoded = tokenService.decodificar(refreshToken);
         UserDetails user = userDetailsService.loadUserByUsername(decoded.getSubject());
         return new TokenResponse(tokenService.emitir(decoded.getSubject(), user.getAuthorities()));
+    }
+
+    // Revoca el token actual hasta su expiración. De paso purga los ya vencidos para que la tabla no crezca.
+    @Transactional
+    public void logout(String token, Instant expira) {
+        tokenInvalidadoRepository.deleteByExpiraEnBefore(Instant.now());
+        tokenInvalidadoRepository.save(TokenInvalidado.de(token, expira));
     }
 
     // Solo ADMIN llega aquí (lo exige @PreAuthorize en el controller). Crea un RECEPCIONISTA.

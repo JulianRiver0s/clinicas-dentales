@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -40,5 +42,12 @@ public class AuthController {
     @PostMapping("/token")
     public TokenResponse refresh(@RequestParam String refreshToken) {
         return authService.refresh(refreshToken);
+    }
+
+    // Revoca el token con el que se llama: queda inválido aunque no haya expirado.
+    @PostMapping("/logout")
+    public MensajeResponse logout(@AuthenticationPrincipal Jwt jwt) {
+        authService.logout(jwt.getTokenValue(), jwt.getExpiresAt());
+        return new MensajeResponse("Sesión cerrada");
     }
 }
