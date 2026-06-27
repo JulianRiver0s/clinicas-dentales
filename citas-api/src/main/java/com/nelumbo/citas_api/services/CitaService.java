@@ -2,26 +2,37 @@ package com.nelumbo.citas_api.services;
 
 import com.nelumbo.citas_api.dto.AgendarCitaRequest;
 import com.nelumbo.citas_api.dto.CitaCreadaResponse;
+import com.nelumbo.citas_api.dto.MensajeResponse;
+import com.nelumbo.citas_api.dto.NotificacionRequest;
+import com.nelumbo.citas_api.dto.RegistrarAtencionRequest;
+import com.nelumbo.citas_api.dto.RegistrarAtencionResponse;
 import com.nelumbo.citas_api.entities.Cita;
 import com.nelumbo.citas_api.entities.Consultorio;
 import com.nelumbo.citas_api.entities.EstadoCita;
+import com.nelumbo.citas_api.entities.HistoricoFinanciero;
 import com.nelumbo.citas_api.entities.Odontologo;
 import com.nelumbo.citas_api.entities.Paciente;
 import com.nelumbo.citas_api.entities.Procedimiento;
+import com.nelumbo.citas_api.entities.TipoMovimiento;
 import com.nelumbo.citas_api.entities.Usuario;
 import com.nelumbo.citas_api.exception.ApiException;
 import com.nelumbo.citas_api.repositories.CitaRepository;
 import com.nelumbo.citas_api.repositories.ConsultorioRepository;
+import com.nelumbo.citas_api.repositories.HistoricoFinancieroRepository;
 import com.nelumbo.citas_api.repositories.OdontologoRepository;
 import com.nelumbo.citas_api.repositories.PacienteRepository;
 import com.nelumbo.citas_api.repositories.ProcedimientoRepository;
 import com.nelumbo.citas_api.repositories.UsuarioRepository;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.EnumSet;
 import java.util.Set;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -37,11 +48,25 @@ public class CitaService {
             "No se puede Agendar Cita, el odontólogo o el consultorio no se encuentran disponibles en el horario solicitado";
     static final String PACIENTE_BLOQUEADO =
             "No se puede Agendar Cita, el paciente se encuentra bloqueado por inasistencias reiteradas";
+    static final String SIN_CITA_ACTIVA =
+            "No se puede Registrar Atención, no existe una cita activa para este paciente";
+    private static final String MENSAJE_BLOQUEO =
+            "Su cuenta ha sido bloqueada por 30 días debido a inasistencias reiteradas";
 
     // Estados no atendidos que ocupan agenda y cuentan para el duplicado.
     private static final Set<EstadoCita> ACTIVAS = EnumSet.of(EstadoCita.AGENDADA, EstadoCita.EN_CURSO);
     // Zona de la red de clínicas para decidir si dos citas caen el mismo día.
     private static final ZoneId ZONA = ZoneId.of("America/Bogota");
+
+    // Reglas de cancelación e inasistencia.
+    private static final long CANCELACION_TARDIA_HORAS = 24;
+    private static final BigDecimal PORCENTAJE_CARGO = new BigDecimal("0.30");
+    private static final BigDecimal CERO = BigDecimal.ZERO.setScale(2);
+    static final int UMBRAL_INASISTENCIAS = 3;
+    private static final int VENTANA_DIAS = 90;
+    private static final int BLOQUEO_DIAS = 30;
+
+    private static final Logger log = LoggerFactory.getLogger(CitaService.class);
 
     private final CitaRepository citaRepo;
     private final PacienteRepository pacienteRepo;
@@ -49,6 +74,8 @@ public class CitaService {
     private final OdontologoRepository odontologoRepo;
     private final ProcedimientoRepository procedimientoRepo;
     private final UsuarioRepository usuarioRepo;
+    private final HistoricoFinancieroRepository historicoRepo;
+    private final NotificacionClient notificacionClient;
 
     @Transactional
     public CitaCreadaResponse agendar(AgendarCitaRequest req, String emailUsuario) {
@@ -84,6 +111,119 @@ public class CitaService {
                 .creadoPor(creador)
                 .build();
         return new CitaCreadaResponse(citaRepo.save(cita).getId());
+    }
+
+    // Check-in: el paciente llegó a la clínica. Solo tiene sentido sobre una cita agendada y la pone EN_CURSO.
+    @Transactional
+    public MensajeResponse checkin(Long citaId) {
+        Cita cita = citaRepo.findById(citaId)
+                .orElseThrow(() -> ApiException.noEncontrado("Cita no encontrada"));
+        if (cita.getEstado() != EstadoCita.AGENDADA) {
+            throw ApiException.negocio("Solo se puede registrar check-in de una cita agendada");
+        }
+        cita.setCheckinEn(Instant.now());
+        cita.setEstado(EstadoCita.EN_CURSO);
+        return new MensajeResponse("Check-in registrado");
+    }
+
+    // Cierre de la atención: confirma el cobro (snapshot) en el histórico y deja la cita ATENDIDA.
+    @Transactional
+    public RegistrarAtencionResponse registrarAtencion(RegistrarAtencionRequest req) {
+        Cita cita = citaRepo.findById(req.citaId()).orElse(null);
+        if (cita == null
+                || !atendible(cita.getEstado(), cita.getCheckinEn())
+                || !cita.getPaciente().getDocumento().equals(req.documento())) {
+            throw ApiException.negocio(SIN_CITA_ACTIVA);
+        }
+        Instant ahora = Instant.now();
+        cita.setInicioReal(cita.getCheckinEn());
+        cita.setFinReal(ahora);
+        cita.setEstado(EstadoCita.ATENDIDA);
+        registrarHistorico(cita, TipoMovimiento.COBRO_PROCEDIMIENTO, cita.getCosto(), EstadoCita.ATENDIDA, ahora);
+        return new RegistrarAtencionResponse("Atención registrada", cita.getCosto());
+    }
+
+    // Cancelar una cita activa. Con menos de 24 h de antelación cobra el 30%; al dejar los estados activos libera la agenda.
+    @Transactional
+    public MensajeResponse cancelar(Long citaId) {
+        Cita cita = citaRepo.findById(citaId)
+                .orElseThrow(() -> ApiException.noEncontrado("Cita no encontrada"));
+        if (!ACTIVAS.contains(cita.getEstado())) {
+            throw ApiException.negocio("Solo se puede cancelar una cita activa");
+        }
+        Instant ahora = Instant.now();
+        BigDecimal cargo = cargoPorCancelacion(cita.getCosto(), cita.getFechaHoraCita(), ahora);
+        boolean tardia = cargo.signum() > 0;
+        cita.setEstado(EstadoCita.CANCELADA);
+        registrarHistorico(cita, tardia ? TipoMovimiento.CARGO_POR_CANCELACION_TARDIA : TipoMovimiento.SIN_CARGO,
+                cargo, EstadoCita.CANCELADA, ahora);
+        if (tardia) {
+            log.info("Cancelación tardía de la cita {}: cargo {}", citaId, cargo);
+            return new MensajeResponse("Cita cancelada con cargo por cancelación tardía");
+        }
+        return new MensajeResponse("Cita cancelada");
+    }
+
+    // Marcar inasistencia: libera la agenda, suma al contador y, al tercer no-show en 90 días, bloquea 30 días y notifica.
+    // El conteo es leer-modificar-escribir sin bloqueo por paciente; suficiente a este volumen. Si dos recepcionistas
+    // marcaran no-show del mismo paciente a la vez, habría que añadir un bloqueo optimista o pesimista sobre el paciente.
+    @Transactional
+    public MensajeResponse noShow(Long citaId) {
+        Cita cita = citaRepo.findById(citaId)
+                .orElseThrow(() -> ApiException.noEncontrado("Cita no encontrada"));
+        if (!ACTIVAS.contains(cita.getEstado())) {
+            throw ApiException.negocio("Solo se puede registrar inasistencia de una cita activa");
+        }
+        Instant ahora = Instant.now();
+        Paciente paciente = cita.getPaciente();
+
+        cita.setEstado(EstadoCita.INASISTENCIA);
+        paciente.setInasistencias(paciente.getInasistencias() + 1); // contador acumulado del paciente; la regla de bloqueo no lo usa
+        registrarHistorico(cita, TipoMovimiento.SIN_CARGO, CERO, EstadoCita.INASISTENCIA, ahora);
+
+        // El bloqueo se decide sobre el histórico por la fecha real del evento; el guardado anterior ya insertó esta inasistencia.
+        Instant desde = ahora.atZone(ZONA).minusDays(VENTANA_DIAS).toInstant();
+        long inasistencias = historicoRepo.countByPacienteDocumentoAndEstadoCitaAndFechaHoraAfter(
+                paciente.getDocumento(), EstadoCita.INASISTENCIA, desde);
+
+        if (!debeBloquear(inasistencias)) {
+            return new MensajeResponse("Inasistencia registrada");
+        }
+        paciente.setBloqueadoHasta(ahora.atZone(ZONA).plusDays(BLOQUEO_DIAS).toInstant());
+        log.warn("Paciente {} bloqueado por {} inasistencias en {} días",
+                paciente.getDocumento(), inasistencias, VENTANA_DIAS);
+        // El paciente no tiene email en el modelo, así que va vacío; el microservicio identifica por documento.
+        notificacionClient.enviar(new NotificacionRequest(
+                "", paciente.getDocumento(), MENSAJE_BLOQUEO, cita.getClinica().getNombre()));
+        return new MensajeResponse("Inasistencia registrada. Paciente bloqueado por inasistencias reiteradas");
+    }
+
+    private void registrarHistorico(Cita cita, TipoMovimiento tipo, BigDecimal monto, EstadoCita estado, Instant cuando) {
+        historicoRepo.save(HistoricoFinanciero.builder()
+                .cita(cita)
+                .pacienteDocumento(cita.getPaciente().getDocumento())
+                .clinicaId(cita.getClinica().getId())
+                .tipo(tipo)
+                .monto(monto)
+                .fechaHora(cuando)
+                .estadoCita(estado)
+                .build());
+    }
+
+    // Solo se atiende una cita activa (AGENDADA/EN_CURSO) que ya hizo check-in.
+    static boolean atendible(EstadoCita estado, Instant checkinEn) {
+        return ACTIVAS.contains(estado) && checkinEn != null;
+    }
+
+    // Cancelar con <24 h de antelación cobra el 30% del costo; con 24 h o más, sin cargo.
+    static BigDecimal cargoPorCancelacion(BigDecimal costo, Instant fechaCita, Instant ahora) {
+        boolean tardia = Duration.between(ahora, fechaCita).compareTo(Duration.ofHours(CANCELACION_TARDIA_HORAS)) < 0;
+        BigDecimal cargo = tardia ? costo.multiply(PORCENTAJE_CARGO) : BigDecimal.ZERO;
+        return cargo.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    static boolean debeBloquear(long inasistenciasEnVentana) {
+        return inasistenciasEnVentana >= UMBRAL_INASISTENCIAS;
     }
 
     // El recepcionista solo puede agendar en consultorios de sus clínicas; el admin no tiene esa restricción.
