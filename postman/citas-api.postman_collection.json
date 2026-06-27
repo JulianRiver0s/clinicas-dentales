@@ -3,7 +3,7 @@
     "name": "citas-api",
     "_postman_id": "c1ta5ap1-0000-4000-8000-000000000001",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Endpoints de citas-api (clínicas dentales). Auth con JWT RS256 vía header Authorization: Bearer.\n\nUso: corre primero **Auth → Login**; su test guarda el accessToken en la variable de colección `{{token}}` y el resto de requests lo heredan automáticamente.\n\n`base_url` por defecto: http://localhost:8080\n\nCredenciales sembradas (migraciones):\n- ADMIN — admin@mail.com / admin\n- RECEPCIONISTA — recepcion@mail.com / recepcion\n\nLos IDs de ejemplo (1, 2) asumen los datos demo de la migración V7."
+    "description": "Endpoints de citas-api (clínicas dentales). Auth con JWT RS256 vía header Authorization: Bearer.\n\nUso: corre primero **Auth → Login**; su test guarda el accessToken en la variable de colección `{{token}}` y el resto de requests lo heredan automáticamente.\n\n`base_url` por defecto: http://localhost:8080\n\nCredenciales sembradas (migraciones):\n- ADMIN — admin@mail.com / admin\n- RECEPCIONISTA — recepcion@mail.com / recepcion\n\nLos IDs de ejemplo (1, 2) asumen los datos demo de las migraciones V7 (Clínica Central, clínica 1) y V9 (citas, histórico y Clínica Norte, clínica 2). Con esa data los indicadores y consultas devuelven resultados no vacíos; el RECEPCIONISTA solo ve la Clínica Central."
   },
   "auth": {
     "type": "bearer",
@@ -92,6 +92,19 @@
               "path": ["auth", "token"]
             },
             "description": "Público. Renueva el access token a partir de un JWT válido. Devuelve { accessToken }."
+          }
+        },
+        {
+          "name": "Cerrar sesión (logout)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/auth/logout",
+              "host": ["{{base_url}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Cualquier usuario autenticado. Revoca el token con el que se llama (queda inválido aunque no haya expirado). Tras esto, reusar ese {{token}} responde 401."
           }
         }
       ]
@@ -543,6 +556,70 @@
             },
             "description": "ADMIN o RECEPCIONISTA. Marca la cita como inasistencia. Sin cuerpo. Devuelve { mensaje }."
           }
+        },
+        {
+          "name": "Listado del día",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/dia?clinicaId=1&fecha=2026-06-27",
+              "host": ["{{base_url}}"],
+              "path": ["citas", "dia"],
+              "query": [
+                { "key": "clinicaId", "value": "1" },
+                { "key": "consultorioId", "value": "1", "disabled": true },
+                { "key": "fecha", "value": "2026-06-27", "description": "Opcional (YYYY-MM-DD); por defecto hoy." }
+              ]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Citas de un día por clínica y/o consultorio (debe indicar al menos uno). Shape §4.5: id, documentoPaciente, nombrePaciente, odontologo, procedimiento, fechaHora, estado. El RECEPCIONISTA solo ve sus clínicas."
+          }
+        },
+        {
+          "name": "Listar citas (agendadas y atendidas)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas?estado=ATENDIDA&clinicaId=1",
+              "host": ["{{base_url}}"],
+              "path": ["citas"],
+              "query": [
+                { "key": "estado", "value": "ATENDIDA", "description": "Opcional: AGENDADA, EN_CURSO, ATENDIDA, CANCELADA, INASISTENCIA." },
+                { "key": "clinicaId", "value": "1", "description": "Opcional." },
+                { "key": "fecha", "value": "2026-06-27", "description": "Opcional (YYYY-MM-DD).", "disabled": true }
+              ]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Listado con filtros opcionales (todos combinables). El RECEPCIONISTA queda acotado a sus clínicas."
+          }
+        },
+        {
+          "name": "Buscar por documento (parcial)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/buscar?documento=10",
+              "host": ["{{base_url}}"],
+              "path": ["citas", "buscar"],
+              "query": [{ "key": "documento", "value": "10" }]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Coincidencia parcial (LIKE %doc%) sobre el documento del paciente."
+          }
+        },
+        {
+          "name": "Detalle de cita",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/:id",
+              "host": ["{{base_url}}"],
+              "path": ["citas", ":id"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Detalle con sede, costo y tiempos reales. El RECEPCIONISTA recibe 403 si la cita es de una clínica ajena."
+          }
         }
       ]
     },
@@ -573,6 +650,91 @@
               "path": ["me", "consultorios"]
             },
             "description": "Cualquier usuario autenticado. Consultorios de las clínicas del usuario."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Indicadores",
+      "item": [
+        {
+          "name": "Top 10 pacientes (red)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/indicadores/top-pacientes-red",
+              "host": ["{{base_url}}"],
+              "path": ["indicadores", "top-pacientes-red"]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Pacientes con más atenciones (citas ATENDIDA) y su total. El ADMIN ve toda la red; el RECEPCIONISTA queda acotado a sus clínicas."
+          }
+        },
+        {
+          "name": "Top 10 pacientes (clínica)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/indicadores/top-pacientes-clinica/:clinicaId",
+              "host": ["{{base_url}}"],
+              "path": ["indicadores", "top-pacientes-clinica", ":clinicaId"],
+              "variable": [{ "key": "clinicaId", "value": "1" }]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Idem para una clínica concreta. El RECEPCIONISTA recibe 403 si la clínica no es suya."
+          }
+        },
+        {
+          "name": "Primera vez hoy",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/indicadores/primera-vez-hoy",
+              "host": ["{{base_url}}"],
+              "path": ["indicadores", "primera-vez-hoy"]
+            },
+            "description": "ADMIN o RECEPCIONISTA. De las citas de hoy, los pacientes sin cita previa en esa clínica. El RECEPCIONISTA queda acotado a sus clínicas."
+          }
+        },
+        {
+          "name": "Ganancias por periodo",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/indicadores/ganancias/:clinicaId",
+              "host": ["{{base_url}}"],
+              "path": ["indicadores", "ganancias", ":clinicaId"],
+              "variable": [{ "key": "clinicaId", "value": "1" }]
+            },
+            "description": "ADMIN o RECEPCIONISTA. Ganancias hoy/semana/mes/año de la clínica (solo cobros de procedimiento). El RECEPCIONISTA recibe 403 si la clínica no es suya."
+          }
+        },
+        {
+          "name": "Top 3 odontólogos del mes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/indicadores/top-odontologos-mes",
+              "host": ["{{base_url}}"],
+              "path": ["indicadores", "top-odontologos-mes"]
+            },
+            "description": "Solo ADMIN. Odontólogos con más atenciones del mes actual (red)."
+          }
+        },
+        {
+          "name": "Top 3 procedimientos del mes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/indicadores/top-procedimientos-mes",
+              "host": ["{{base_url}}"],
+              "path": ["indicadores", "top-procedimientos-mes"]
+            },
+            "description": "Solo ADMIN. Procedimientos más solicitados del mes actual (red)."
           }
         }
       ]
