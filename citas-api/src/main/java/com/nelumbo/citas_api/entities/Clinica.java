@@ -32,6 +32,12 @@ public class Clinica {
     @Column(length = 200)
     private String direccion;
 
+    @Column(length = 120)
+    private String ciudad;
+
+    @Column(length = 20)
+    private String telefono;
+
     @Column(name = "creado_en", nullable = false)
     private Instant creadoEn;
 }

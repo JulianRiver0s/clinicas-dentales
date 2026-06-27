@@ -29,6 +29,9 @@ public class Procedimiento {
     @Column(length = 120, nullable = false)
     private String nombre;
 
+    @Column(length = 300)
+    private String descripcion;
+
     @Column(nullable = false, precision = 12, scale = 2)
     private BigDecimal costo;
 
