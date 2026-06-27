@@ -104,7 +104,7 @@ public class CitaService {
                 .clinica(consultorio.getClinica())
                 .fechaHoraCita(inicio)
                 .fechaHoraCreacion(Instant.now())
-                .estado(EstadoCita.AGENDADA)
+                .estado(estadoInicial(req.requiereAprobacion()))
                 .costo(procedimiento.getCosto())
                 .creadoPor(creador)
                 .build();
@@ -201,6 +201,33 @@ public class CitaService {
         return new MensajeResponse("Inasistencia registrada. Paciente bloqueado por inasistencias reiteradas");
     }
 
+    // Aprobar una cita pendiente: pasa a AGENDADA. Una cita pendiente no reserva el horario, así que aquí se
+    // vuelve a comprobar la disponibilidad por si el cupo se ocupó entre el agendamiento y la aprobación.
+    @Transactional
+    public MensajeResponse aprobar(Long citaId) {
+        Cita cita = citaRepo.findById(citaId)
+                .orElseThrow(() -> ApiException.noEncontrado("Cita no encontrada"));
+        if (cita.getEstado() != EstadoCita.PENDIENTE_APROBACION) {
+            throw ApiException.negocio("Solo se puede aprobar una cita pendiente de aprobación");
+        }
+        validarDisponibilidad(cita.getOdontologo().getId(), cita.getConsultorio(),
+                cita.getFechaHoraCita(), finDe(cita));
+        cita.setEstado(EstadoCita.AGENDADA);
+        return new MensajeResponse("Cita aprobada");
+    }
+
+    // Rechazar una cita pendiente: pasa a RECHAZADA y queda fuera de la agenda.
+    @Transactional
+    public MensajeResponse rechazar(Long citaId) {
+        Cita cita = citaRepo.findById(citaId)
+                .orElseThrow(() -> ApiException.noEncontrado("Cita no encontrada"));
+        if (cita.getEstado() != EstadoCita.PENDIENTE_APROBACION) {
+            throw ApiException.negocio("Solo se puede rechazar una cita pendiente de aprobación");
+        }
+        cita.setEstado(EstadoCita.RECHAZADA);
+        return new MensajeResponse("Cita rechazada");
+    }
+
     private void registrarHistorico(Cita cita, TipoMovimiento tipo, BigDecimal monto, EstadoCita estado, Instant cuando) {
         historicoRepo.save(HistoricoFinanciero.builder()
                 .cita(cita)
@@ -222,6 +249,11 @@ public class CitaService {
 
     static boolean debeBloquear(long inasistenciasEnVentana) {
         return inasistenciasEnVentana >= UMBRAL_INASISTENCIAS;
+    }
+
+    // Sin flag (o en false) la cita se agenda directo; con el flag en true queda pendiente de aprobación.
+    static EstadoCita estadoInicial(Boolean requiereAprobacion) {
+        return Boolean.TRUE.equals(requiereAprobacion) ? EstadoCita.PENDIENTE_APROBACION : EstadoCita.AGENDADA;
     }
 
     // El recepcionista solo puede agendar en consultorios de sus clínicas; el admin no tiene esa restricción.

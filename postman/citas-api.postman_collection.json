@@ -492,7 +492,7 @@
               "host": ["{{base_url}}"],
               "path": ["citas"]
             },
-            "description": "ADMIN o RECEPCIONISTA. fechaHora debe ser futura (ISO-8601 UTC). documento: 6-12 dígitos. Devuelve { id }."
+            "description": "ADMIN o RECEPCIONISTA. fechaHora debe ser futura (ISO-8601 UTC). documento: 6-12 dígitos. Campo opcional requiereAprobacion: si va en true la cita nace PENDIENTE_APROBACION (la aprueba/rechaza un ADMIN). Devuelve { id }."
           }
         },
         {
@@ -555,6 +555,34 @@
               "variable": [{ "key": "id", "value": "1" }]
             },
             "description": "ADMIN o RECEPCIONISTA. Marca la cita como inasistencia. Sin cuerpo. Devuelve { mensaje }."
+          }
+        },
+        {
+          "name": "Aprobar cita",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/:id/aprobar",
+              "host": ["{{base_url}}"],
+              "path": ["citas", ":id", "aprobar"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN. Aprueba una cita en estado PENDIENTE_APROBACION y la pasa a AGENDADA (revalida disponibilidad). Sin cuerpo. Devuelve { mensaje }."
+          }
+        },
+        {
+          "name": "Rechazar cita",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/citas/:id/rechazar",
+              "host": ["{{base_url}}"],
+              "path": ["citas", ":id", "rechazar"],
+              "variable": [{ "key": "id", "value": "1" }]
+            },
+            "description": "Solo ADMIN. Rechaza una cita en estado PENDIENTE_APROBACION y la pasa a RECHAZADA. Sin cuerpo. Devuelve { mensaje }."
           }
         },
         {

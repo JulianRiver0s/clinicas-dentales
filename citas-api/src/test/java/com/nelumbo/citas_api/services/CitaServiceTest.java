@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.nelumbo.citas_api.entities.EstadoCita;
 import java.math.BigDecimal;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
@@ -65,5 +66,13 @@ class CitaServiceTest {
         assertFalse(CitaService.debeBloquear(2));
         assertTrue(CitaService.debeBloquear(3));
         assertTrue(CitaService.debeBloquear(4));
+    }
+
+    @Test
+    void elFlagDecideElEstadoInicial() {
+        assertEquals(EstadoCita.PENDIENTE_APROBACION, CitaService.estadoInicial(true));
+        assertEquals(EstadoCita.AGENDADA, CitaService.estadoInicial(false));
+        // Sin flag (lo normal) la cita se agenda directamente.
+        assertEquals(EstadoCita.AGENDADA, CitaService.estadoInicial(null));
     }
 }

@@ -92,4 +92,17 @@ public class CitaController {
     public MensajeResponse noShow(@PathVariable Long id) {
         return service.noShow(id);
     }
+
+    // Aprobar/rechazar una cita pendiente de aprobación es exclusivo del administrador.
+    @PostMapping("/{id}/aprobar")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public MensajeResponse aprobar(@PathVariable Long id) {
+        return service.aprobar(id);
+    }
+
+    @PostMapping("/{id}/rechazar")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public MensajeResponse rechazar(@PathVariable Long id) {
+        return service.rechazar(id);
+    }
 }
