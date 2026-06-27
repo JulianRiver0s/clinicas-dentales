@@ -80,6 +80,39 @@ curl -s -X POST http://localhost:8080/auth/register \
 
 > Renovar el access token: `POST /auth/token` con `-d "refreshToken=<jwt>"`.
 
+## 4. Indicadores y consultas de citas
+
+Capa de lectura (E8). Todos requieren token. Con el seed `V9` devuelven datos no vacíos.
+
+| Método | Ruta | Rol | Qué devuelve |
+|---|---|---|---|
+| GET | `/indicadores/top-pacientes-red` | ADMIN / RECEP | Top 10 pacientes por atenciones (red, o sus clínicas si es RECEP) |
+| GET | `/indicadores/top-pacientes-clinica/{clinicaId}` | ADMIN / RECEP | Top 10 pacientes de una clínica |
+| GET | `/indicadores/primera-vez-hoy` | ADMIN / RECEP | Pacientes de hoy sin cita previa en la clínica |
+| GET | `/indicadores/ganancias/{clinicaId}` | ADMIN / RECEP | Ganancias hoy/semana/mes/año de la clínica |
+| GET | `/indicadores/top-odontologos-mes` | ADMIN | Top 3 odontólogos por atenciones del mes |
+| GET | `/indicadores/top-procedimientos-mes` | ADMIN | Top 3 procedimientos más solicitados del mes |
+| GET | `/citas/dia?clinicaId=&consultorioId=&fecha=` | ADMIN / RECEP | Citas del día (shape exacto §4.5) |
+| GET | `/citas?estado=&clinicaId=&fecha=` | ADMIN / RECEP | Listado de citas (agendadas y atendidas), filtros opcionales |
+| GET | `/citas/{id}` | ADMIN / RECEP | Detalle de una cita |
+| GET | `/citas/buscar?documento=` | ADMIN / RECEP | Búsqueda por coincidencia parcial del documento |
+
+**Scope por rol:** el ADMIN ve toda la red; el RECEPCIONISTA solo sus clínicas asociadas. En los
+indicadores "de red" sus resultados se acotan a sus clínicas; al pedir una clínica ajena (indicador
+o detalle de cita) recibe **403**; en los listados, las citas de clínicas ajenas no aparecen.
+
+**Interpretaciones:**
+- *Atención* = cita en estado `ATENDIDA`; los "top pacientes/odontólogos" cuentan atenciones.
+- *Ganancias* = suma de `COBRO_PROCEDIMIENTO` del histórico (los cargos por cancelación tardía no son ganancia).
+- *Primera vez hoy* = paciente con cita hoy y sin ninguna cita previa en esa misma clínica.
+- *Más solicitados* (procedimientos) = todas las citas del mes, sin importar el estado.
+- Periodos (hoy/semana/mes/año) se calculan en zona `America/Bogotá`; la semana empieza el lunes.
+
+```bash
+# Ejemplo: ganancias de la clínica 1 (con token ADMIN o del recepcionista de esa clínica)
+curl -s http://localhost:8080/indicadores/ganancias/1 -H "Authorization: Bearer <accessToken>"
+```
+
 ## Producción
 
 No commitees `private.pem`. Móntala como secreto y apunta las rutas por variable de entorno:
@@ -187,11 +220,11 @@ erDiagram
 
 ## Supuestos
 
-- El esquema lo gestiona Flyway (`ddl-auto=validate`): las migraciones `V1..V7` corren solas al arrancar.
+- El esquema lo gestiona Flyway (`ddl-auto=validate`): las migraciones `V1..V9` corren solas al arrancar.
 - Las contraseñas se guardan con bcrypt (pgcrypto `crypt`/`gen_salt('bf')`), no en texto plano.
 - JWT firmado con RS256; access token válido 6 h (`app.jwt.expiration-hours`), renovable con `POST /auth/token`.
 - Dos roles: `ADMIN` y `RECEPCIONISTA`. Registrar usuarios es exclusivo de ADMIN.
 - Los pacientes se identifican por `documento` (sin id autogenerado); acumulan inasistencias y pueden quedar bloqueados temporalmente (`bloqueado_hasta`).
 - Estados de cita: `AGENDADA`, `EN_CURSO`, `ATENDIDA`, `CANCELADA`, `INASISTENCIA`, `PENDIENTE_APROBACION`, `RECHAZADA`.
-- Los datos demo (1 clínica, 1 consultorio, 1 odontólogo, 2 procedimientos, 1 recepcionista) son sólo para arranque local.
+- Los datos demo son sólo para arranque local: `V7` siembra la "Clínica Central" (1 consultorio, 1 odontólogo, 2 procedimientos, 1 recepcionista asociado) y `V9` añade citas + histórico financiero y una 2.ª clínica ("Clínica Norte", sin recepcionista) para que los indicadores devuelvan datos y se vea el aislamiento por rol.
 - A propósito **no se valida el orden temporal** al marcar inasistencia o cancelar: se puede hacer aunque la cita aún no haya llegado a su hora. Esto facilita probar de una vez el cobro por cancelación tardía, el no-show y el bloqueo sin fabricar citas con fecha pasada. En producción se añadiría un guard que rechace marcar inasistencia/cancelación antes de la hora de la cita.
